@@ -85,7 +85,7 @@ npm install
 3. Start the server:
 
 ```
-node script.js
+node server.js
 ```
 
 ---
