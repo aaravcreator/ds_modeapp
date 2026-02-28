@@ -569,29 +569,25 @@
         }
 
 
-        function setCleanupLoading(isLoading) {
-            cleanupBtn.disabled = isLoading;
-            if (isLoading) {
-                cleanupBtn.querySelector('.spinner').classList.add('show');
-                cleanupBtn.querySelector('span').textContent = 'Cleaning...';
-            } else {
-                cleanupBtn.querySelector('.spinner').classList.remove('show');
-                cleanupBtn.querySelector('span').textContent = '🧹 Cleanup Server Files';
-            }
-        }
+        // function setCleanupLoading(isLoading) {
+        //     cleanupBtn.disabled = isLoading;
+        //     if (isLoading) {
+        //         cleanupBtn.querySelector('.spinner').classList.add('show');
+        //         cleanupBtn.querySelector('span').textContent = 'Cleaning...';
+        //     } else {
+        //         cleanupBtn.querySelector('.spinner').classList.remove('show');
+        //         cleanupBtn.querySelector('span').textContent = '🧹 Cleanup Server Files';
+        //     }
+        // }
 
         cleanupBtn.addEventListener('click', async () => {
             
-            setCleanupLoading(true);
+            // setCleanupLoading(true);
            const res = await  fetch('/cleanup', {
                 method: 'GET'
             });
-            console.log('Cleanup response:', res);
-                setTimeout(() => {
-                    setCleanupLoading(false);
-                    alert('Server files cleaned up successfully!');
-                }, 2000);
-
+            const json =await res.json();
+            cleanupBtn.textContent = `🧹 Cleanup Completed | [${json.message}]` ;
         });
 
         function getMovieSlug() {

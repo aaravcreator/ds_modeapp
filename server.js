@@ -106,7 +106,7 @@ app.get('/cleanup', (req, res) => {
             }
         });
     }
-    res.send("Cleanup complete");
+    res.json({ message: "Cleanup complete" });
 });
 
 app.get('/folder-size', (req, res) => {
