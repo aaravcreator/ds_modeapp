@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dramabox Episode Player</title>
+    <meta name="description" content="A web app to fetch and play episodes from DramaBox with preloading functionality.">
+    <meta name="keywords" content="DramaBox, Episode Player, HLS, Video Streaming, Preloading, JavaScript">
+    <meta name="author" content="Aarav Poudel">
+    <meta name="robots" content="index, follow">
+
+    <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-YX26LV7DF9"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-YX26LV7DF9');
+</script>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        .header {
+            font-size: 24px;
+            text-align: center;
+            padding: 5px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            margin-bottom: 1rem;
+        }
+        .header > p{
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1rem;
+            margin-top: 0.5rem;
+
+        }
+        h1 {
+            font-size: 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .main-content {
+            display: grid;
+            grid-template-columns: auto 350px;
+            gap: 1rem;
+            height: calc(100vh - 140px);
+            align-items: start;
+        }
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+        }
+        .video-section {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            height: 95vh;
+        }
+        .video-container {
+            position: relative;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            max-width: 500px;
+            margin: 0 auto;
+            height: 100%;
+        }
+        video {
+            width: auto;
+            height: 100%;
+            object-fit: contain;
+        }
+        .video-placeholder {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
+        }
+        .video-placeholder svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+        .video-info {
+            padding: 1rem 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 1rem;
+        }
+        .video-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .video-meta {
+            align-items: center;
+            display: flex;
+            gap: 1.5rem;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.9rem;
+        }
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow: hidden;
+        }
+        .input-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        .form-group:last-of-type {
+            margin-bottom: 1.5rem;
+        }
+        label {
+            display: block;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+        }
+        input {
+            width: 100%;
+            padding: 0.65rem 0.85rem;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+        input:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            background: rgba(255, 255, 255, 0.15);
+        }
+        .btn {
+            width: 100%;
+            padding: 0.85rem;
+            border: none;
+            border-radius: 6px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .btn:disabled {
+            background: #4a5568;
+            cursor: not-allowed;
+        }
+        .error {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 6px;
+            padding: 0.85rem;
+            margin-top: 1rem;
+            color: #fca5a5;
+            display: none;
+            font-size: 0.85rem;
+        }
+        .error.show {
+            display: block;
+        }
+        .episodes-panel {
+            height: 5%;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 1.5rem;
+            flex: 1;
+            display: none;
+            flex-direction: column;
+        }
+        .episodes-panel.show {
+            display: flex;
+        }
+        .episodes-header {
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .episodes-header h2 {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.9);
+        }
+        .episodes-grid {
+            height: 500px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            padding-right: 0.5rem;
+        }
+        .episodes-grid::-webkit-scrollbar {
+            width: 6px;
+        }
+        .episodes-grid::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+        }
+        .episodes-grid::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+        .episodes-grid::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        .episode-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+        .episode-card:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateX(4px);
+        }
+        .episode-card.selected {
+            border-color: #8b5cf6;
+            background: rgba(139, 92, 246, 0.15);
+        }
+        .episode-card.playing::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .episode-card.preloading {
+            border-color: rgba(251, 191, 36, 0.5);
+        }
+        .episode-card.downloading {
+            border-color: rgba(59, 130, 246, 0.5);
+        }
+        .episode-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.4rem;
+        }
+        .episode-number {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        .episode-status {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .badge {
+            font-size: 0.65rem;
+            padding: 0.15rem 0.4rem;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+        .badge.playing {
+            background: rgba(139, 92, 246, 0.3);
+            color: #c4b5fd;
+        }
+        .badge.preloading {
+            background: rgba(251, 191, 36, 0.3);
+            color: #fcd34d;
+        }
+        .badge.downloading {
+            background: rgba(59, 130, 246, 0.3);
+            color: #93c5fd;
+        }
+        .episode-details {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.75rem;
+            display: flex;
+            gap: 1rem;
+        }
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+        .spinner.show {
+            display: inline-block;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 1rem;
+            z-index: 10;
+        }
+        .loading-overlay.show {
+            display: flex;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top: 4px solid #8b5cf6;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        .fullscreen-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            z-index: 20;
+            transition: all 0.3s;
+            display: none;
+        }
+        .fullscreen-btn.show {
+            display: block;
+        }
+        .fullscreen-btn:hover {
+            background: rgba(0, 0, 0, 0.8);
+            border-color: #8b5cf6;
+        }
+        .video-container.fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            max-width: 100%;
+            margin: 0;
+            z-index: 9999;
+            border-radius: 0;
+        }
+        .video-container.fullscreen video {
+            max-height: 100vh;
+        }
+        .download-status {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            padding: 0.85rem;
+            margin-top: 1rem;
+            color: #93c5fd;
+            display: none;
+            font-size: 0.85rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .download-status.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 DramaBox Episode Player</h1>
+            <p>Fetch and play episodes from DramaBox with preloading functionality. Just copy and paste the Movie url</p>
+        </div>
+
+        <div class="main-content">
+            <div class="video-section">
+                <div class="video-container" id="videoContainer">
+                    <div class="video-placeholder" id="placeholder">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p>Select an episode to start playing</p>
+                    </div>
+                    <video id="videoPlayer" controls style="display: none;"></video>
+                    <video id="preloadPlayer" style="display: none;"></video>
+                    <button class="fullscreen-btn" id="fullscreenBtn">F - Fullscreen</button>
+                    <div class="loading-overlay" id="loadingOverlay">
+                        <div class="loading-spinner"></div>
+                        <p id="loadingText">Loading episode...</p>
+                    </div>
+                </div>
+                <div class="video-info" id="videoInfo" style="display: none;">
+                    <div class="video-meta">
+                        <span class="video-title" id="videoTitle">Episode Title</span>
+                        <span id="videoLikes">❤️ 0 likes</span>
+                        <span id="videoNumber">Episode 0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="input-panel">
+                    <div class="form-group">
+                        <label>Build ID</label>
+                        <input type="text" id="buildId" value="dramaboxdb_prod_20260204" placeholder="e.g., dramaboxdb_prod_20251225" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Original Path</label>
+                        <input type="text" id="originalPath" value="movie/42000001987/your-husband-is-the-tech-king" placeholder="e.g., movie/..." />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Local Server URL (for TS downloads)</label>
+                        <input type="text" id="serverUrl" value="http://localhost:3000" placeholder="http://localhost:3000" />
+                    </div>
+
+                        <button id="fetchBtn" class="btn">
+                            <div id="spinner" class="spinner"></div>
+                            <span id="btnText">▶️ Fetch Episodes</span>
+                        </button>
+
+                    <div id="error" class="error">
+                        <div id="errorText"></div>
+                    </div>
+
+                    <div id="downloadStatus" class="download-status"></div>
+                </div>
+
+                <button id="cleanupBtn" class="btn">
+                     <div id="spinner" class="spinner"></div>
+                            <span id="btnText">🧹 Cleanup Server Files</span>
+                </button>   
+               
+
+                <div id="episodesPanel" class="episodes-panel">
+                    <div class="episodes-header">
+                        <h2>📺 Episodes (<span id="episodeCount">0</span>)</h2>
+                    </div>
+                    <div id="episodesGrid" class="episodes-grid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let episodes = [];
+        let currentEpisodeIndex = -1;
+        let preloadedEpisodeData = null;
+        let hls = null;
+        let preloadHls = null;
+        let downloadingEpisodes = new Set();
+        let preloadingInProgress = false;
+
+        const buildIdInput = document.getElementById('buildId');
+        const originalPathInput = document.getElementById('originalPath');
+        const serverUrlInput = document.getElementById('serverUrl');
+        const fetchBtn = document.getElementById('fetchBtn');
+        const cleanupBtn = document.getElementById('cleanupBtn');
+        const spinner = document.getElementById('spinner');
+        const btnText = document.getElementById('btnText');
+        const errorDiv = document.getElementById('error');
+        const errorText = document.getElementById('errorText');
+        const episodesPanel = document.getElementById('episodesPanel');
+        const episodesGrid = document.getElementById('episodesGrid');
+        const episodeCount = document.getElementById('episodeCount');
+        const videoPlayer = document.getElementById('videoPlayer');
+        const preloadPlayer = document.getElementById('preloadPlayer');
+        const videoContainer = document.getElementById('videoContainer');
+        const placeholder = document.getElementById('placeholder');
+        const videoInfo = document.getElementById('videoInfo');
+        const videoLikes = document.getElementById('videoLikes');
+        const videoTitle = document.getElementById('videoTitle');
+        const videoNumber = document.getElementById('videoNumber');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loadingText = document.getElementById('loadingText');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const downloadStatus = document.getElementById('downloadStatus');
+        let isFullscreen = false;
+        let videouid = '';
+
+        function buildM3U8Url(id) {
+            const idStr = id.toString();
+            return `https://hwzthls.dramaboxdb.com/${idStr.slice(-2).split('').reverse().join('')}/${videouid}/${id}_2/m3u8/${id}.720p.m3u8`;
+        }
+
+        function showError(message) {
+            errorText.textContent = message;
+            errorDiv.classList.add('show');
+        }
+
+        function hideError() {
+            errorDiv.classList.remove('show');
+        }
+
+        function showDownloadStatus(message) {
+            downloadStatus.textContent += message + '\n';
+            downloadStatus.classList.add('show');
+            downloadStatus.scrollTop = downloadStatus.scrollHeight;
+        }
+
+        function hideDownloadStatus() {
+            downloadStatus.classList.remove('show');
+            downloadStatus.textContent = '';
+        }
+
+        function setLoading(isLoading) {
+            fetchBtn.disabled = isLoading;
+            if (isLoading) {
+                spinner.classList.add('show');
+                btnText.textContent = 'Loading...';
+            } else {
+                spinner.classList.remove('show');
+                btnText.textContent = '▶️ Fetch Episodes';
+            }
+        }
+
+
+        function setCleanupLoading(isLoading) {
+            cleanupBtn.disabled = isLoading;
+            if (isLoading) {
+                cleanupBtn.querySelector('.spinner').classList.add('show');
+                cleanupBtn.querySelector('span').textContent = 'Cleaning...';
+            } else {
+                cleanupBtn.querySelector('.spinner').classList.remove('show');
+                cleanupBtn.querySelector('span').textContent = '🧹 Cleanup Server Files';
+            }
+        }
+
+        cleanupBtn.addEventListener('click', async () => {
+            
+            setCleanupLoading(true);
+           const res = await  fetch('/cleanup', {
+                method: 'GET'
+            });
+            console.log('Cleanup response:', res);
+                setTimeout(() => {
+                    setCleanupLoading(false);
+                    alert('Server files cleaned up successfully!');
+                }, 2000);
+
+        });
+
+        function getMovieSlug() {
+            let originalPath = "";
+            if(originalPathInput.value.includes("https://www.dramaboxdb.com/")){
+                const url = new URL(originalPathInput.value);
+                originalPath = url.pathname.slice(1);
+            } else {
+                originalPath = originalPathInput.value;
+            }
+            const parts = originalPath.split('/');
+            return parts[parts.length - 1];
+        }
+
+        function getmovieID() {
+            let originalPath = "";
+            if(originalPathInput.value.includes("https://www.dramaboxdb.com/")){
+                const url = new URL(originalPathInput.value);
+                originalPath = url.pathname.slice(1);
+            } else {
+                originalPath = originalPathInput.value;
+            }
+            const parts = originalPath.split('/');
+            return parts[parts.length - 2];
+        }
+
+        function getEpisodeUrl(episode) {
+            const buildId = buildIdInput.value;
+            const movieSlug = getMovieSlug();
+            const movieId = getmovieID();
+            return `https://www.dramaboxdb.com/_next/data/${buildId}/en/ep/${movieId}_${movieSlug}/${episode.id}_Episode-${episode.index + 1}.json`;
+        }
+
+        function updateEpisodeCards() {
+            document.querySelectorAll('.episode-card').forEach((card, index) => {
+                card.classList.remove('playing', 'preloading', 'downloading');
+                const statusDiv = card.querySelector('.episode-status');
+                statusDiv.innerHTML = '▶️';
+                
+                if (index === currentEpisodeIndex) {
+                    card.classList.add('playing');
+                    statusDiv.innerHTML = '<span class="badge playing">PLAYING</span>';
+                } else if (downloadingEpisodes.has(index)) {
+                    card.classList.add('downloading');
+                    statusDiv.innerHTML = '<span class="badge downloading">DOWNLOADING</span>';
+                } else if (preloadedEpisodeData && index === preloadedEpisodeData.index) {
+                    card.classList.add('preloading');
+                    statusDiv.innerHTML = '<span class="badge preloading">READY</span>';
+                }
+            });
+        }
+
+
+
+        
+        function createEpisodeCard(episode, index) {
+            const card = document.createElement('div');
+            card.className = 'episode-card';
+            card.dataset.index = index;
+            
+            card.innerHTML = `
+                <div class="episode-header">
+                    <span class="episode-number">Episode ${episode.indexStr}</span>
+                    <div class="episode-status">▶️</div>
+                </div>
+                <div class="episode-details">
+                    <span>❤️ ${episode?.like_count || 0}</span>
+                    <span>ID: ${episode.indexStr}</span>
+                </div>
+            `;
+            
+            card.addEventListener('click', () => playEpisode(index));
+            
+            return card;
+        }
+
+        const findVideoUrl = (data, index) => {
+            if (data.pageProps?.chapterList[index]?.m3u8Url) {
+               if(videouid == ''){
+                    console.log("Setting videouid");
+                   videouid = data.pageProps.chapterList[index].m3u8Url.split('/').slice(4,-3).join('/');
+                console.log("videouid set to:", videouid);
+            }
+             return data.pageProps.chapterList[index].m3u8Url;
+            }
+            return null;
+        };
+
+        async function downloadAndConvertTS(episode, isPreload = false) {
+            const serverUrl = serverUrlInput.value;
+            const episodeId = episode.id;
+            const episodeIndex = episodes.indexOf(episode);
+            
+            downloadingEpisodes.add(episodeIndex);
+            updateEpisodeCards();
+            
+            const baseUrl = buildM3U8Url(episodeId).replace('.m3u8', '-{num}.ts');
+            console.log('Base TS URL:', baseUrl);
+            
+            if (!isPreload) {
+                showDownloadStatus(`Starting download for Episode ${episode.indexStr}...`);
+                loadingText.textContent = `Downloading Episode ${episode.indexStr}...`;
+            } else {
+                console.log(`Preloading Episode ${episode.indexStr} in background...`);
+            }
+            
+            try {
+                const response = await fetch(`${serverUrl}/download`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `baseUrl=${encodeURIComponent(baseUrl)}&episodeId=${episodeId}`
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let done = false;
+
+                while(!done) {
+                    const { value, done: doneReading } = await reader.read();
+                    done = doneReading;
+                    if(value) {
+                        const text = decoder.decode(value);
+                        if (!isPreload) {
+                            showDownloadStatus(text);
+                        }
+                    }
+                }
+
+                downloadingEpisodes.delete(episodeIndex);
+                updateEpisodeCards();
+                
+                const videoUrl = `${serverUrl}/output_video?episodeId=${episodeId}`;
+                console.log(`Episode ${episode.indexStr} downloaded successfully`);
+                return videoUrl;
+            } catch (err) {
+                downloadingEpisodes.delete(episodeIndex);
+                updateEpisodeCards();
+                throw new Error(`Download failed: ${err.message}`);
+            }
+        }
+
+        async function preloadNextEpisode() {
+            if (preloadingInProgress) {
+                console.log('Preload already in progress, skipping...');
+                return;
+            }
+            
+            const nextIndex = currentEpisodeIndex + 1;
+            if (nextIndex >= episodes.length) return;
+
+            preloadingInProgress = true;
+            
+            try {
+                const nextEpisode = episodes[nextIndex];
+                const episodeUrl = getEpisodeUrl(nextEpisode);
+                const response = await fetch(episodeUrl);
+                const data = await response.json();
+                
+                const videoUrl = findVideoUrl(data, nextIndex);
+                
+                if (!videoUrl) {
+                    console.log(`No m3u8Url for Episode ${nextEpisode.indexStr}, downloading from server...`);
+                    
+                    const downloadedUrl = await downloadAndConvertTS(nextEpisode, true);
+                    
+                    preloadedEpisodeData = { 
+                        index: nextIndex, 
+                        videoUrl: downloadedUrl,
+                        data: data,
+                        isLocalFile: true
+                    };
+                    
+                    updateEpisodeCards();
+                    console.log(`Preloaded Episode ${nextEpisode.indexStr} from local server`);
+                } else {
+                    if (Hls.isSupported()) {
+                        if (preloadHls) {
+                            preloadHls.destroy();
+                            preloadHls = null;
+                        }
+                        
+                        preloadHls = new Hls({
+                            maxBufferLength: 10,
+                            maxMaxBufferLength: 20,
+                            enableWorker: true,
+                        });
+                        
+                        preloadHls.loadSource(videoUrl);
+                        preloadHls.attachMedia(preloadPlayer);
+                        
+                        preloadedEpisodeData = { 
+                            index: nextIndex, 
+                            videoUrl: videoUrl,
+                            data: data,
+                            isLocalFile: false
+                        };
+                        
+                        updateEpisodeCards();
+                        console.log(`Preloaded Episode ${nextEpisode.indexStr} via HLS`);
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to preload next episode:', err);
+            } finally {
+                preloadingInProgress = false;
+            }
+        }
+
+        async function playEpisode(index) {
+            if (index < 0 || index >= episodes.length) return;
+            
+            currentEpisodeIndex = index;
+            const episode = episodes[index];
+            
+            document.querySelectorAll('.episode-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            document.querySelector(`[data-index="${index}"]`).classList.add('selected');
+            
+            loadingOverlay.classList.add('show');
+            loadingText.textContent = 'Loading episode...';
+            placeholder.style.display = 'none';
+            if (!preloadedEpisodeData || preloadedEpisodeData.index !== index) {
+                hideDownloadStatus();
+            }
+            
+            try {
+                let videoUrl, episodeData, isLocalFile = false;
+                
+                if (preloadedEpisodeData && preloadedEpisodeData.index === index) {
+                    videoUrl = preloadedEpisodeData.videoUrl;
+                    episodeData = preloadedEpisodeData.data;
+                    isLocalFile = preloadedEpisodeData.isLocalFile;
+                    
+                    if (!isLocalFile) {
+                        if (hls) {
+                            hls.destroy();
+                            hls = null;
+                        }
+                        
+                        hls = preloadHls;
+                        preloadHls = null;
+                        
+                        hls.detachMedia();
+                        hls.attachMedia(videoPlayer);
+                    } else {
+                        if (hls) {
+                            hls.destroy();
+                            hls = null;
+                        }
+                        videoPlayer.src = videoUrl;
+                        await videoPlayer.load();
+                    }
+                    
+                    preloadedEpisodeData = null;
+                } else {
+                    const episodeUrl = getEpisodeUrl(episode);
+                    const response = await fetch(episodeUrl);
+                    episodeData = await response.json();
+
+                    videoUrl = findVideoUrl(episodeData, index);
+                    
+                    if (!videoUrl) {
+                        console.log('No m3u8Url found, initiating download...');
+                        videoUrl = await downloadAndConvertTS(episode, false);
+                        isLocalFile = true;
+                        
+                        if (hls) {
+                            hls.destroy();
+                            hls = null;
+                        }
+                        videoPlayer.src = videoUrl;
+                        await videoPlayer.load();
+                    } else {
+                        if (hls) {
+                            hls.destroy();
+                            hls = null;
+                        }
+                        
+                        if (Hls.isSupported()) {
+                            hls = new Hls({
+                                maxBufferLength: 30,
+                                maxMaxBufferLength: 60,
+                                enableWorker: true,
+                                lowLatencyMode: false,
+                            });
+                            hls.loadSource(videoUrl);
+                            hls.attachMedia(videoPlayer);
+                            
+                            await new Promise((resolve, reject) => {
+                                hls.on(Hls.Events.MANIFEST_PARSED, resolve);
+                                hls.on(Hls.Events.ERROR, (event, data) => {
+                                    if (data.fatal) reject(data);
+                                });
+                            });
+                        } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
+                            videoPlayer.src = videoUrl;
+                            await videoPlayer.load();
+                        }
+                    }
+                }
+                
+                videoPlayer.style.display = 'block';
+                videoInfo.style.display = 'block';
+                fullscreenBtn.classList.add('show');
+                videoTitle.textContent = episodeData.pageProps?.bookinfo?.bookname || `Episode ${episode.indexStr}`;
+                videoLikes.textContent = `❤️ ${episode?.like_count || 0} likes`;
+                videoNumber.textContent = `Episode ${episode.indexStr} of ${episodes.length}`;
+                
+                try {
+                    await videoPlayer.play();
+                } catch (playErr) {
+                    console.log('Autoplay prevented, waiting for user interaction');
+                }
+                
+                loadingOverlay.classList.remove('show');
+                
+                updateEpisodeCards();
+                
+                setTimeout(() => preloadNextEpisode(), 3000);
+                
+            } catch (err) {
+                console.error('Failed to play episode:', err);
+                loadingOverlay.classList.remove('show');
+                showError('Failed to load video: ' + err.message);
+            }
+        }
+
+        videoPlayer.addEventListener('ended', () => {
+            const nextIndex = currentEpisodeIndex + 1;
+            if (nextIndex < episodes.length) {
+                setTimeout(() => {
+                    playEpisode(nextIndex);
+                    const nextCard = document.querySelector(`[data-index="${nextIndex}"]`);
+                    if (nextCard) {
+                        nextCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 500);
+            }
+        });
+
+        function displayEpisodes() {
+            episodesGrid.innerHTML = '';
+            episodeCount.textContent = episodes.length;
+            
+            episodes.forEach((episode, index) => {
+                const card = createEpisodeCard(episode, index);
+                episodesGrid.appendChild(card);
+            });
+            
+            episodesPanel.classList.add('show');
+        }
+
+        async function fetchEpisodes() {
+            setLoading(true);
+            hideError();
+            hideDownloadStatus();
+            episodes = [];
+            currentEpisodeIndex = -1;
+            preloadedEpisodeData = null;
+            downloadingEpisodes.clear();
+            episodesPanel.classList.remove('show');
+            
+            if (hls) {
+                hls.destroy();
+                hls = null;
+            }
+            if (preloadHls) {
+                preloadHls.destroy();
+                preloadHls = null;
+            }
+            videoPlayer.style.display = 'none';
+            videoInfo.style.display = 'none';
+            fullscreenBtn.classList.remove('show');
+            placeholder.style.display = 'block';
+
+            try {
+                const buildId = buildIdInput.value;
+                let originalPath = "";
+                if(originalPathInput.value.includes("https://www.dramaboxdb.com/")){
+                    const url = new URL(originalPathInput.value);
+                    originalPath = url.pathname.slice(1);
+                } else {
+                    originalPath = originalPathInput.value;
+                }
+                
+                const jsonUrl = `https://www.dramaboxdb.com/_next/data/${buildId}/en/${originalPath}.json`;
+                
+                const response = await fetch(jsonUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                
+                let episodeList = null;
+                
+                if (data.pageProps?.data?.online_base) {
+                    episodeList = data.pageProps.data.online_base;
+                } else if (data.pageProps?.chapterList) {
+                    episodeList = data.pageProps.chapterList;
+                } else if (data.pageProps?.detail?.episodeList) {
+                    episodeList = data.pageProps.detail.episodeList;
+                } else if (Array.isArray(data)) {
+                    episodeList = data;
+                }
+
+                if (!episodeList || !Array.isArray(episodeList)) {
+                    throw new Error('Could not find episode list in JSON response');
+                }
+
+                episodes = episodeList;
+                console.log(`Fetched ${episodes.length} episodes`);
+                displayEpisodes();
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        fetchBtn.addEventListener('click', fetchEpisodes);
+        
+        buildIdInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') fetchEpisodes();
+        });
+        
+        originalPathInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') fetchEpisodes();
+        });
+
+        function toggleFullscreen() {
+            isFullscreen = !isFullscreen;
+            if (isFullscreen) {
+                videoContainer.classList.add('fullscreen');
+                fullscreenBtn.textContent = 'F - Exit Fullscreen';
+            } else {
+                videoContainer.classList.remove('fullscreen');
+                fullscreenBtn.textContent = 'F - Fullscreen';
+            }
+        }
+
+        fullscreenBtn.addEventListener('click', toggleFullscreen);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'f' || e.key === 'F') {
+                if (videoPlayer.style.display === 'block') {
+                    e.preventDefault();
+                    toggleFullscreen();
+                }
+            }
+            if (e.key === 'Escape' && isFullscreen) {
+                toggleFullscreen();
+            }
+        });
+
+
+       function formatBytes(bytes) {
+    if (bytes === 0) return "0 Bytes";
+
+    const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+
+    const value = bytes / Math.pow(1024, i);
+
+    return value.toFixed(2) + " " + sizes[i];
+}
+       async function  get_status(){
+            const res = await fetch('/folder-size')
+            const json = await res.json();
+            console.log('Folder size response:', json);
+            const size = formatBytes(json.size);
+            cleanupBtn.textContent = `🧹 Cleanup Server Files | [${size}]`
+        }
+         setInterval(get_status,2000);
+        
+    </script>
+</body>
+</html>
